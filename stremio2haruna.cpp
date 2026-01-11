@@ -158,6 +158,22 @@ bool Stremio2Haruna::isValidUrl(const QString &text) {
 }
 
 void Stremio2Haruna::launchHaruna(const QString &url) {
+  // Additional URL sanitization before launching external application
+  QUrl validatedUrl(url);
+
+  // Ensure URL is properly encoded and safe
+  if (!validatedUrl.isValid() || validatedUrl.isLocalFile()) {
+    qWarning() << "Rejected potentially unsafe URL:" << url;
+    return;
+  }
+
+  // Only allow network URLs with approved schemes
+  QStringList allowedSchemes = {"http", "https", "rtmp", "rtsp"};
+  if (!allowedSchemes.contains(validatedUrl.scheme().toLower())) {
+    qWarning() << "Rejected non-network URL scheme:" << validatedUrl.scheme();
+    return;
+  }
+
   // Launch Haruna and keep track of the process
   if (m_harunaProcess) {
     delete m_harunaProcess;
@@ -171,7 +187,8 @@ void Stremio2Haruna::launchHaruna(const QString &url) {
             m_clipboardTimer->start(m_pollingRate);
           });
 
-  m_harunaProcess->start("haruna", QStringList() << url);
+  // Use validated and properly encoded URL
+  m_harunaProcess->start("haruna", QStringList() << validatedUrl.toString());
 }
 
 void Stremio2Haruna::checkClipboard() {
