@@ -116,7 +116,12 @@ bool Stremio2Haruna::isStremioActive() {
   QProcess process;
   process.start("kdotool", QStringList() << "search" << "--class"
                                          << "com.stremio.stremio");
-  process.waitForFinished(500);
+
+  if (!process.waitForFinished(500)) {
+    qWarning() << "kdotool process timeout";
+    process.kill();
+    return false;
+  }
 
   QString output = QString::fromUtf8(process.readAllStandardOutput()).trimmed();
 
@@ -137,7 +142,13 @@ bool Stremio2Haruna::isValidUrl(const QString &text) {
     return false;
   }
 
-  // Check for common URL schemes
+  // Explicitly reject local file access for security
+  if (url.isLocalFile() || url.scheme().toLower() == "file") {
+    qWarning() << "Rejected local file URL for security reasons";
+    return false;
+  }
+
+  // Check for allowed URL schemes (network protocols only)
   QStringList validSchemes = {"http", "https", "ftp", "ftps",
                               "rtmp", "rtsp",  "mms", "mmsh"};
 
@@ -167,7 +178,12 @@ void Stremio2Haruna::checkClipboard() {
   // Poll clipboard with wl-paste
   QProcess process;
   process.start("wl-paste", QStringList() << "-n");
-  process.waitForFinished(100);
+
+  if (!process.waitForFinished(100)) {
+    qWarning() << "wl-paste process timeout";
+    process.kill();
+    return;
+  }
 
   QString currentText =
       QString::fromUtf8(process.readAllStandardOutput()).trimmed();
@@ -205,8 +221,26 @@ void Stremio2Haruna::checkClipboard() {
 
 void Stremio2Haruna::loadSettings() {
   QSettings settings("Stremio2Haruna", "Stremio2Haruna");
-  m_pollingRate = settings.value("pollingRate", 3500).toInt();
-  m_launchDelay = settings.value("launchDelay", 2500).toInt();
+
+  // Load with validation to prevent integer overflow or invalid values
+  int loadedPollingRate = settings.value("pollingRate", 3500).toInt();
+  int loadedLaunchDelay = settings.value("launchDelay", 2500).toInt();
+
+  // Validate ranges (match UI constraints: 500-10000ms for polling, 0-10000ms
+  // for delay)
+  m_pollingRate = qBound(500, loadedPollingRate, 10000);
+  m_launchDelay = qBound(0, loadedLaunchDelay, 10000);
+
+  // Log warning if values were clamped (security: prevent malicious config
+  // values)
+  if (loadedPollingRate != m_pollingRate) {
+    qWarning() << "Polling rate clamped from" << loadedPollingRate << "to"
+               << m_pollingRate;
+  }
+  if (loadedLaunchDelay != m_launchDelay) {
+    qWarning() << "Launch delay clamped from" << loadedLaunchDelay << "to"
+               << m_launchDelay;
+  }
 }
 
 void Stremio2Haruna::saveSettings() {
