@@ -5,6 +5,7 @@
 #include <QDBusReply>
 #include <QDebug>
 #include <QProcess>
+#include <QSettings>
 #include <QThread>
 #include <QTimer>
 #include <QUrl>
@@ -14,7 +15,11 @@ Stremio2Haruna::Stremio2Haruna(QObject *parent)
       m_enabledAction(nullptr), m_quitAction(nullptr),
       m_clipboard(QApplication::clipboard()), m_enabled(true),
       m_clipboardTimer(new QTimer(this)), m_lastClipboardText(""),
-      m_harunaProcess(nullptr) {
+      m_harunaProcess(nullptr), m_pollingRate(3500), m_launchDelay(2500) {
+
+  // Load settings from QSettings
+  loadSettings();
+
   setupSystemTray();
 
   connect(m_clipboard, &QClipboard::dataChanged, this,
@@ -24,7 +29,11 @@ Stremio2Haruna::Stremio2Haruna(QObject *parent)
 
   connect(m_clipboardTimer, &QTimer::timeout, this,
           &Stremio2Haruna::checkClipboard);
-  m_clipboardTimer->start(3500); // Poll every 3.5 seconds
+  m_clipboardTimer->start(m_pollingRate); // Use configurable polling rate
+
+  // Connect tray icon activation signal for left-click handling
+  connect(m_trayIcon, &QSystemTrayIcon::activated, this,
+          &Stremio2Haruna::onTrayIconActivated);
 }
 
 Stremio2Haruna::~Stremio2Haruna() { delete m_trayIcon; }
@@ -82,8 +91,8 @@ void Stremio2Haruna::onClipboardChanged() {
     return;
   }
 
-  // Wait 2.5 seconds before launching Haruna
-  QThread::msleep(2500);
+  // Wait before launching Haruna (configurable delay)
+  QThread::msleep(m_launchDelay);
 
   launchHaruna(clipboardText);
 }
@@ -148,7 +157,7 @@ void Stremio2Haruna::launchHaruna(const QString &url) {
           QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished), this,
           [this]() {
             // Haruna closed, resume clipboard monitoring
-            m_clipboardTimer->start(3500);
+            m_clipboardTimer->start(m_pollingRate);
           });
 
   m_harunaProcess->start("haruna", QStringList() << url);
@@ -187,9 +196,51 @@ void Stremio2Haruna::checkClipboard() {
     // Stop polling to avoid interfering with Haruna fullscreen
     m_clipboardTimer->stop();
 
-    // Wait 2.5 seconds before launching Haruna
-    QThread::msleep(2500);
+    // Wait before launching Haruna (configurable delay)
+    QThread::msleep(m_launchDelay);
 
     launchHaruna(currentText);
+  }
+}
+
+void Stremio2Haruna::loadSettings() {
+  QSettings settings("Stremio2Haruna", "Stremio2Haruna");
+  m_pollingRate = settings.value("pollingRate", 3500).toInt();
+  m_launchDelay = settings.value("launchDelay", 2500).toInt();
+}
+
+void Stremio2Haruna::saveSettings() {
+  QSettings settings("Stremio2Haruna", "Stremio2Haruna");
+  settings.setValue("pollingRate", m_pollingRate);
+  settings.setValue("launchDelay", m_launchDelay);
+}
+
+void Stremio2Haruna::onTrayIconActivated(
+    QSystemTrayIcon::ActivationReason reason) {
+  if (reason == QSystemTrayIcon::Trigger) {
+    // Left-click - open config dialog
+    openConfigDialog();
+  }
+  // Right-click automatically shows the context menu
+}
+
+void Stremio2Haruna::openConfigDialog() {
+  ConfigDialog dialog;
+
+  // Set current values
+  dialog.setPollingRateMs(m_pollingRate);
+  dialog.setLaunchDelayMs(m_launchDelay);
+
+  // Show dialog and wait for user response
+  if (dialog.exec() == QDialog::Accepted) {
+    // User clicked Save - apply new settings
+    m_pollingRate = dialog.getPollingRateMs();
+    m_launchDelay = dialog.getLaunchDelayMs();
+
+    // Save to persistent storage
+    saveSettings();
+
+    // Apply new polling rate to timer
+    m_clipboardTimer->setInterval(m_pollingRate);
   }
 }

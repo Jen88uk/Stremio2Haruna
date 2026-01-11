@@ -5,7 +5,8 @@ A Qt6-based system tray application for KDE Plasma (Wayland) that automatically 
 ## Features
 
 - 🎯 Monitors clipboard for URLs when Stremio is running
-- ⏱️ Waits 2.5 seconds before launching Haruna (gives you time to close/pause Stremio)
+- ⚙️ **Configurable polling rate and launch delay via settings dialog**
+- ⏱️ Default 2.5s delay before launching Haruna (gives you time to close/pause Stremio)
 - 🎬 Automatically pauses monitoring while Haruna is playing (no fullscreen interference)
 - 🔄 Auto-resumes monitoring when you close Haruna
 - 🔘 Easy enable/disable toggle via system tray menu
@@ -71,34 +72,43 @@ sudo make install
 
 2. The application will run in the background with a system tray icon
 
-3. Right-click the tray icon to:
+3. **Configure settings (NEW in v1.1.0):**
+   - Left-click the tray icon to open settings dialog
+   - Adjust **Clipboard Polling Rate** (0.5s - 10.0s, default: 3.5s)
+   - Adjust **Launch Delay** (0.0s - 10.0s, default: 2.5s)
+   - Click Save to apply changes
+   - Settings are saved automatically and persist between sessions
+
+4. Right-click the tray icon to:
    - Toggle enabled/disabled state
    - Quit the application
 
-4. When enabled and Stremio is running:
+5. When enabled and Stremio is running:
    - Copy any URL to your clipboard (e.g., from Stremio's video player menu)
-   - The app will wait 2.5 seconds, then launch Haruna with the URL
+   - The app will wait (configurable delay, default 2.5s), then launch Haruna with the URL
 
 ## How It Works
 
-1. **Clipboard Monitoring**: Uses `wl-paste` polling (every 3.5 seconds) to detect clipboard changes on Wayland
+1. **Clipboard Monitoring**: Uses `wl-paste` polling (default every 3.5s, configurable) to detect clipboard changes on Wayland
 2. **Stremio Detection**: Uses `kdotool` to check if Stremio is running
 3. **URL Validation**: Checks if the clipboard content is a valid URL with supported schemes  
-4. **Delay**: Waits 2.5 seconds to give you time to close/pause Stremio
+4. **Delay**: Waits (default 2.5s, configurable) to give you time to close/pause Stremio
 5. **Haruna Launch**: Launches Haruna media player with the URL and monitors the process
 6. **Auto Pause/Resume**: Stops clipboard polling while Haruna is running (prevents fullscreen glitches), automatically resumes when you close Haruna
+7. **Persistent Settings**: All configuration is saved using QSettings and persists between application restarts
 
 ## Known Limitations
 
 - **KDE-specific**: Uses `kdotool` which requires KDE Plasma/KWin
 - **Wayland-only**: Designed for Wayland; X11 may work but is untested
-- **Polling interval**: Uses 3.5-second polling to avoid menu interference
+- **Polling interval**: Uses polling-based clipboard detection (configurable from 0.5s to 10s)
 
 ## Troubleshooting
 
 ### Clipboard not detected
 - Ensure `wl-clipboard` is installed: `which wl-paste`
-- The polling interval is 2 seconds, so there may be a slight delay
+- The default polling interval is 3.5s - you can adjust this in settings (left-click tray icon)
+- Try reducing the polling rate for faster detection
 
 ### Stremio detection not working
 - Ensure `kdotool` is installed: `which kdotool`
