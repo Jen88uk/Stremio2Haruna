@@ -1,0 +1,9 @@
+/home/jen/Projects/Stremio2Haruna/build/CMakeFiles/stremio2haruna.dir
+/home/jen/Projects/Stremio2Haruna/build/CMakeFiles/edit_cache.dir
+/home/jen/Projects/Stremio2Haruna/build/CMakeFiles/rebuild_cache.dir
+/home/jen/Projects/Stremio2Haruna/build/CMakeFiles/list_install_components.dir
+/home/jen/Projects/Stremio2Haruna/build/CMakeFiles/install.dir
+/home/jen/Projects/Stremio2Haruna/build/CMakeFiles/install/local.dir
+/home/jen/Projects/Stremio2Haruna/build/CMakeFiles/install/strip.dir
+/home/jen/Projects/Stremio2Haruna/build/CMakeFiles/stremio2haruna_autogen_timestamp_deps.dir
+/home/jen/Projects/Stremio2Haruna/build/CMakeFiles/stremio2haruna_autogen.dir

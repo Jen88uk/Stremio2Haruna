@@ -1,0 +1,2 @@
+set(__QT_DEPLOY_TARGET_stremio2haruna_FILE /home/jen/Projects/Stremio2Haruna/build/stremio2haruna)
+set(__QT_DEPLOY_TARGET_stremio2haruna_TYPE EXECUTABLE)
