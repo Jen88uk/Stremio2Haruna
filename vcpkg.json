@@ -1,0 +1,21 @@
+{
+  "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg/master/scripts/vcpkg.schema.json",
+  "name": "stremio2haruna",
+  "version": "1.1.1",
+  "description": "Qt6-based system tray application that automatically detects URLs copied in Stremio and launches them in Haruna media player",
+  "homepage": "https://github.com/Squall88uk/Stremio2Haruna",
+  "license": "MIT",
+  "dependencies": [
+    {
+      "name": "qt6-base",
+      "default-features": false,
+      "features": [
+        "core",
+        "widgets",
+        "gui",
+        "dbus"
+      ]
+    }
+  ],
+  "builtin-baseline": "latest"
+}
