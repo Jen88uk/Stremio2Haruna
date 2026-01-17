@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=Stremio2Haruna
+Comment=Automatically launch Haruna with URLs copied from Stremio
+Exec=stremio2haruna
+Icon=Stremio2Haruna
+Terminal=false
+Type=Application
+Categories=Utility;Qt;AudioVideo;
+StartupNotify=false
+Version=1.0
