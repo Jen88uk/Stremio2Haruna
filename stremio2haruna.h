@@ -43,8 +43,10 @@ private:
   QTimer *m_clipboardTimer;
   QString m_lastClipboardText;
   QProcess *m_harunaProcess;
-  int m_pollingRate; // milliseconds
-  int m_launchDelay; // milliseconds
+  int m_pollingRate;      // milliseconds
+  int m_launchDelay;      // milliseconds
+  bool m_launchingHaruna; // Prevents re-entry during launch
+  bool m_dialogOpen;      // Prevents processing while dialog is open
 };
 
 #endif // STREMIO2HARUNA_H

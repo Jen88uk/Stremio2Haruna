@@ -15,7 +15,8 @@ Stremio2Haruna::Stremio2Haruna(QObject *parent)
       m_enabledAction(nullptr), m_quitAction(nullptr),
       m_clipboard(QApplication::clipboard()), m_enabled(true),
       m_clipboardTimer(new QTimer(this)), m_lastClipboardText(""),
-      m_harunaProcess(nullptr), m_pollingRate(3500), m_launchDelay(2500) {
+      m_harunaProcess(nullptr), m_pollingRate(3500), m_launchDelay(2500),
+      m_launchingHaruna(false), m_dialogOpen(false) {
 
   // Load settings from QSettings
   loadSettings();
@@ -73,6 +74,10 @@ void Stremio2Haruna::setupSystemTray() {
 }
 
 void Stremio2Haruna::onClipboardChanged() {
+  // If dialog is open, don't process anything
+  if (m_dialogOpen) {
+    return;
+  }
 
   // Only proceed if enabled
   if (!m_enabled) {
@@ -200,12 +205,22 @@ bool Stremio2Haruna::isValidUrl(const QString &text) {
 }
 
 void Stremio2Haruna::launchHaruna(const QString &url) {
+  // Prevent re-entry if already launching
+  if (m_launchingHaruna) {
+    qWarning() << "Haruna launch already in progress, ignoring";
+    return;
+  }
+
+  // Set flag at start, clear at end
+  m_launchingHaruna = true;
+
   // Additional URL sanitization before launching external application
   QUrl validatedUrl(url);
 
   // Ensure URL is properly encoded and safe
   if (!validatedUrl.isValid() || validatedUrl.isLocalFile()) {
     qWarning() << "Rejected potentially unsafe URL:" << url;
+    m_launchingHaruna = false;
     return;
   }
 
@@ -213,12 +228,28 @@ void Stremio2Haruna::launchHaruna(const QString &url) {
   QStringList allowedSchemes = {"http", "https", "rtmp", "rtsp"};
   if (!allowedSchemes.contains(validatedUrl.scheme().toLower())) {
     qWarning() << "Rejected non-network URL scheme:" << validatedUrl.scheme();
+    m_launchingHaruna = false;
     return;
   }
 
-  // Launch Haruna and keep track of the process
+  // Clean up existing process properly
   if (m_harunaProcess) {
-    delete m_harunaProcess;
+    // CRITICAL: Disconnect ALL signals before deleting to prevent
+    // finished signal from firing after deletion
+    disconnect(m_harunaProcess, nullptr, this, nullptr);
+
+    // Terminate if still running
+    if (m_harunaProcess->state() != QProcess::NotRunning) {
+      m_harunaProcess->terminate();
+      if (!m_harunaProcess->waitForFinished(500)) {
+        m_harunaProcess->kill();
+        m_harunaProcess->waitForFinished(500);
+      }
+    }
+
+    // Use deleteLater instead of delete to avoid crashes from pending signals
+    m_harunaProcess->deleteLater();
+    m_harunaProcess = nullptr;
   }
 
   m_harunaProcess = new QProcess(this);
@@ -226,17 +257,34 @@ void Stremio2Haruna::launchHaruna(const QString &url) {
           QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished), this,
           [this]() {
             // Haruna closed, resume clipboard monitoring only if still enabled
-            // This prevents restart during shutdown
+            // Use delayed restart to prevent immediate re-triggering
             if (m_enabled && m_clipboardTimer) {
-              m_clipboardTimer->start(m_pollingRate);
+              // Delay restart by 500ms to avoid race conditions
+              QTimer::singleShot(500, this, [this]() {
+                // Check again before restarting
+                if (m_enabled && m_clipboardTimer &&
+                    !m_clipboardTimer->isActive()) {
+                  m_clipboardTimer->start(m_pollingRate);
+                }
+              });
             }
           });
+
+  // CRITICAL: Clear flag BEFORE starting process!
+  // If process fails immediately, finished signal fires before we return
+  // We must clear the flag first so we don't block future attempts
+  m_launchingHaruna = false;
 
   // Use validated and properly encoded URL
   m_harunaProcess->start("haruna", QStringList() << validatedUrl.toString());
 }
 
 void Stremio2Haruna::checkClipboard() {
+  // If dialog is open, don't process anything
+  if (m_dialogOpen) {
+    return;
+  }
+
   // Poll clipboard with wl-paste
   QProcess process;
   process.start("wl-paste", QStringList() << "-n");
@@ -321,6 +369,9 @@ void Stremio2Haruna::onTrayIconActivated(
 }
 
 void Stremio2Haruna::openConfigDialog() {
+  // Set flag to prevent ANY clipboard processing while dialog is open
+  m_dialogOpen = true;
+
   ConfigDialog dialog;
 
   // Set current values
@@ -332,7 +383,9 @@ void Stremio2Haruna::openConfigDialog() {
   connect(&dialog, &ConfigDialog::quitRequested, this, &Stremio2Haruna::onQuit);
 
   // Show dialog and wait for user response
-  if (dialog.exec() == QDialog::Accepted) {
+  int result = dialog.exec();
+
+  if (result == QDialog::Accepted) {
     // User clicked Save - apply new settings
     m_pollingRate = dialog.getPollingRateMs();
     m_launchDelay = dialog.getLaunchDelayMs();
@@ -352,6 +405,9 @@ void Stremio2Haruna::openConfigDialog() {
       m_clipboardTimer->stop();
     }
   }
+
+  // Clear flag - clipboard processing can resume
+  m_dialogOpen = false;
 }
 
 void Stremio2Haruna::clearClipboardUrls() {
