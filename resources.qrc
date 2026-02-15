@@ -1,6 +1,7 @@
 <RCC>
     <qresource prefix="/icons">
         <file>Stremio2Haruna.png</file>
+        <file>Stremio2Haruna-tray.png</file>
     </qresource>
 </RCC>
 

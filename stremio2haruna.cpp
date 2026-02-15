@@ -45,7 +45,7 @@ Stremio2Haruna::~Stremio2Haruna() { delete m_trayIcon; }
 void Stremio2Haruna::setupSystemTray() {
   // Create system tray icon
   m_trayIcon = new QSystemTrayIcon(this);
-  m_trayIcon->setIcon(QIcon(QStringLiteral(":/icons/Stremio2Haruna.png")));
+  m_trayIcon->setIcon(QIcon(QStringLiteral(":/icons/Stremio2Haruna-tray.png")));
 
   // Create menu
   m_trayMenu = new QMenu();
