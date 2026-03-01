@@ -42,3 +42,6 @@ stremio2haruna
 # OS specific files
 .DS_Store
 Thumbs.db
+
+# Cache directories
+.cache/
